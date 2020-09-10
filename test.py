@@ -20,65 +20,68 @@ class Grabber(QtWidgets.QWidget):
         #limit widget AND layout margins
         layout.setContentsMargins(0, 0, 0, 0)
         self.setContentsMargins(0, 0, 0, 0)
-        #layout.setSpacing(0)
+        layout.setSpacing(0)
 
         # create a "placeholder" widget for the screen grab geometry
         self.grabWidget = QtWidgets.QWidget()
-        self.grabWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.grabWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding) #꽉찬 사이즈로 만들어줌
         layout.addWidget(self.grabWidget)
 
         # let's add a configuration panel
-        self.panel = QtWidgets.QWidget()
+        self.panel = QtWidgets.QWidget() # 박스 껍질
         layout.addWidget(self.panel)
 
-        panelLayout = QtWidgets.QHBoxLayout()
-        self.panel.setLayout(panelLayout)
+        panelLayout = QtWidgets.QHBoxLayout() # 박스
+        self.panel.setLayout(panelLayout) 
         panelLayout.setContentsMargins(0, 0, 0, 0)
         self.setContentsMargins(1, 1, 1, 1)
 
-        self.configButton = QtWidgets.QPushButton(self.style().standardIcon(QtWidgets.QStyle.SP_ComputerIcon), '')
-        self.configButton.setFlat(True)
+        self.configButton = QtWidgets.QPushButton(self.style().standardIcon(QtWidgets.QStyle.SP_ComputerIcon), '') #아이콘1
+        self.configButton.setFlat(True) # 경계선제거
         panelLayout.addWidget(self.configButton)
 
-        panelLayout.addWidget(VLine())
+        panelLayout.addWidget(VLine()) #아이콘 1 2 사이에 줄
 
-        self.fpsSpinBox = QtWidgets.QSpinBox()
+        self.fpsSpinBox = QtWidgets.QSpinBox() #아이콘2
         panelLayout.addWidget(self.fpsSpinBox)
         self.fpsSpinBox.setRange(1, 50)
         self.fpsSpinBox.setValue(15)
         panelLayout.addWidget(QtWidgets.QLabel('fps'))
 
-        panelLayout.addWidget(VLine())
+        panelLayout.addWidget(VLine()) #아이콘 2 3 사이 줄
 
-        self.widthLabel = QtWidgets.QLabel()
+        self.widthLabel = QtWidgets.QLabel() #아이콘 3 width
         panelLayout.addWidget(self.widthLabel)
         self.widthLabel.setFrameShape(QtWidgets.QLabel.StyledPanel|QtWidgets.QLabel.Sunken)
 
         panelLayout.addWidget(QtWidgets.QLabel('x'))
 
-        self.heightLabel = QtWidgets.QLabel()
+        self.heightLabel = QtWidgets.QLabel() #아이콘 4 heith
         panelLayout.addWidget(self.heightLabel)
         self.heightLabel.setFrameShape(QtWidgets.QLabel.StyledPanel|QtWidgets.QLabel.Sunken)
 
         panelLayout.addWidget(QtWidgets.QLabel('px'))
 
-        panelLayout.addWidget(VLine())
+        panelLayout.addWidget(VLine()) #아이콘 4 5 사이 줄
 
-        self.recButton = QtWidgets.QPushButton('rec')
+        self.recButton = QtWidgets.QPushButton('rec') #아이콘 5
         panelLayout.addWidget(self.recButton)
 
-        self.playButton = QtWidgets.QPushButton('play')
+        self.playButton = QtWidgets.QPushButton('play') #아이콘 6
         panelLayout.addWidget(self.playButton)
 
-        panelLayout.addStretch(1000)
+        panelLayout.addStretch(1000) #좌측정렬을 위한 우측 고무줄
 
     def updateMask(self):
         # get the *whole* window geometry, including its titlebar and borders
-        frameRect = self.frameGeometry()
+        frameRect = self.frameGeometry() #프레임오프셋
+        print(frameRect)
 
         # get the grabWidget geometry and remap it to global coordinates
-        grabGeometry = self.grabWidget.geometry()
+        grabGeometry = self.grabWidget.geometry() #그랩오프셋
+        print(grabGeometry)
         grabGeometry.moveTopLeft(self.grabWidget.mapToGlobal(QtCore.QPoint(0, 0)))
+        print(self.grabWidget.mapToGlobal(QtCore.QPoint(0, 0)))
 
         # get the actual margins between the grabWidget and the window margins
         left = frameRect.left() - grabGeometry.left()
