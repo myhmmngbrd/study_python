@@ -35,7 +35,7 @@ class MyApp(QtWidgets.QWidget):
         grabGeometry.moveTopLeft(QtCore.QPoint(0, 0))
 
         region = QtGui.QRegion(frameRect.adjusted(left, top, right, bottom))
-        #region -= QtGui.QRegion(grabGeometry)
+        region -= QtGui.QRegion(grabGeometry)
         self.setMask(region)
 
 
