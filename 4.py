@@ -1,7 +1,7 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
 import time
 
-class MyApp(QtWidgets.QWidget):
+class GrabApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         #App attributes
@@ -75,16 +75,12 @@ class MyApp(QtWidgets.QWidget):
             self.grabW = w
             self.grabH = h
             self.grab()
-        
-    
+         
     def mousePressEvent(self, event):
         print('mousepress')
         self.onMouseDown = True
         self.startX = event.x()
         self.startY = event.y()
-
-
-
     
     def mouseReleaseEvent(self, event):
         #범위가 제대로 지정됐으면, x > startx 캡처 후 앱 종료
@@ -93,6 +89,36 @@ class MyApp(QtWidgets.QWidget):
         self.setMask(region)
         self.grabBorder.move(0,0)
         self.grabBorder.resize(0,0)
+
+    def showApp(self):
+        super().exec_()
+
+class MyApp(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init()
+    
+    def init(self):
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+
+        btnlayout = QtWidgets.QVBoxLayout()
+        self.setLayout(btnlayout)
+        startbtn = QtWidgets.QPushButton('start')
+        startbtn.clicked.connect(self.createGrabArea)
+        btnlayout.addWidget(startbtn)
+
+    def createGrabArea(self):
+        grabarea = Sub()
+        grabarea.move(0,0)
+        grabarea.showApp()
+
+class Sub(QtWidgets.QDialog):
+    def __init__(self):
+        super().__init__()
+        self.resize(500,500)
+        self.move(0,0)
+    def showApp(self):
+        super().exec_()
 
 
 
