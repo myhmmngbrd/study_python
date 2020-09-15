@@ -4,6 +4,10 @@ import time
 import pyautogui as ps
 from imagesearch import *
 
+#paint 이벤트 부하 줄이기
+#inputbox 대신 지금 지역정보가 기입된 라벨 삽입하기
+
+
 class MainWindow(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
@@ -33,6 +37,7 @@ class MainWindow(QtWidgets.QWidget):
         
 
 class GrabArea(QtWidgets.QDialog):
+    crash = False
     onClick = False
     selected = False
     sX = 0
@@ -63,12 +68,15 @@ class GrabArea(QtWidgets.QDialog):
         #graboption
         self.options = QtWidgets.QWidget(self)
         self.options.setStyleSheet('background: rgba(255,0,0,100)')
-        self.options.resize(1000,1000)
-        self.options.move(100,100)
+        self.options.resize(200,30)
         self.options.hide()
 
         optlayout = QtWidgets.QHBoxLayout()
         self.options.setLayout(optlayout)
+        self.options.setContentsMargins(0,0,0,0)
+        optlayout.setContentsMargins(0,0,0,0)
+        optlayout.setSpacing(2)
+
 
         self.inputX1 = QtWidgets.QLineEdit()
         self.inputY1 = QtWidgets.QLineEdit()
@@ -86,11 +94,18 @@ class GrabArea(QtWidgets.QDialog):
         self.onClick = True
         self.sX = event.x()
         self.sY = event.y()
+        if self.selected:
+            self.options.hide()
     
     def mouseReleaseEvent(self, event):
         print('mouseRealse')
         self.onClick = False
         if self.selected:
+            x = min(self.eX + 10, self.screen().size().width() - self.options.contentsRect().width() - 10)
+            y = min(self.eY, self.screen().size().height() - self.options.contentsRect().height() - 50)
+            self.options.move(x, y)
+            self.region += QtGui.QRegion(x, y, self.options.contentsRect().width(), self.options.contentsRect().height())
+            self.setMask(self.region)
             self.options.show()
 
     def mouseMoveEvent(self, event):
@@ -102,34 +117,26 @@ class GrabArea(QtWidgets.QDialog):
 
     def paintEvent(self, event):
         print('paint')
-
         #transparent
         painter = QtGui.QPainter(self)
         painter.setOpacity(0.2)
         painter.setBrush(QtCore.Qt.white)
         painter.setPen(QtGui.QPen(QtCore.Qt.white))   
         painter.drawRect(self.rect())
+        print(self.rect())
 
     def grab(self):
         print('grab')
         self.selected = True
-        if (self.sX < self.eX):
-            x = self.sX
-            w = self.eX - self.sX
-        else:
-            x = self.eX
-            w = self.sX - self.eX
-        if (self.sY < self.eY):
-            y = self.sY
-            h = self.eY - self.sY
-        else:
-            y = self.eY
-            h = self.sY - self.eY
+        self.x = min(self.sX, self.eX)
+        self.w = abs(self.eX - self.sX)
+        self.y = min(self.sY, self.eY)
+        self.h = abs(self.eY - self.sY)
         
-        self.border.setGeometry(x-2,y-2,w+4,h+4)
-        region = QtGui.QRegion(self.screen().availableGeometry())
-        region -= QtGui.QRegion(x,y,w,h)
-        self.setMask(region)
+        self.border.setGeometry(self.x-2,self.y-2,self.w+4,self.h+4)
+        self.region = QtGui.QRegion(self.screen().availableGeometry())
+        self.region -= QtGui.QRegion(self.x,self.y,self.w,self.h)
+        self.setMask(self.region)
 
 
 
