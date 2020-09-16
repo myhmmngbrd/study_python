@@ -29,6 +29,7 @@ class GrabWindow(QtWidgets.QDialog):
         self.initEventTrigger()
 
     def initWidgets(self):
+        #grab border
         self.borderLeft = QtWidgets.QWidget(self)
         self.borderRight = QtWidgets.QWidget(self)
         self.borderTop = QtWidgets.QWidget(self)
@@ -37,6 +38,29 @@ class GrabWindow(QtWidgets.QDialog):
         self.vertexRT = QtWidgets.QWidget(self)
         self.vertexRB = QtWidgets.QWidget(self)
         self.vertexLB = QtWidgets.QWidget(self)
+
+        #grab status
+        self.status = QtWidgets.QWidget(self)
+        stautslayout = QtWidgets.QHBoxLayout(self.status)
+        
+        #status - location
+        self.labelX1 = QtWidgets.QLabel('x1: ')
+        self.labelY1 = QtWidgets.QLabel('y1: ')
+        self.labelX2 = QtWidgets.QLabel('x2: ')
+        self.labelY2 = QtWidgets.QLabel('y2: ')
+        self.inputX1 = QtWidgets.QLineEdit()
+        self.inputY1 = QtWidgets.QLineEdit()
+        self.inputX2 = QtWidgets.QLineEdit()
+        self.inputY2 = QtWidgets.QLineEdit()
+
+        stautslayout.addWidget(self.labelX1)
+        stautslayout.addWidget(self.inputX1)
+        stautslayout.addWidget(self.labelY1)
+        stautslayout.addWidget(self.inputY1)
+        stautslayout.addWidget(self.labelX2)
+        stautslayout.addWidget(self.inputX2)
+        stautslayout.addWidget(self.labelY2)
+        stautslayout.addWidget(self.inputY2)
 
     def initStyle(self):
         #left border
@@ -121,26 +145,91 @@ class GrabWindow(QtWidgets.QDialog):
             y = min(self.y1, self.y2)
             w = abs(self.x1 - self.x2)
             h = abs(self.y1 - self.y2)
-        elif self.grabMode == 'l':
-            x = self.x2
-            y = self.borderLeft.geometry().top()
-            w = self.borderTop.geometry().left() + self.borderTop.geometry().width() - self.x2
-            h = self.borderLeft.geometry().height()
-        elif self.grabMode == 'r':
-            x = self.borderTop.geometry().left()
-            y = self.borderLeft.geometry().top()
-            w = self.x2 - self.borderTop.geometry().left()
-            h = self.borderLeft.geometry().height()
-        elif self.grabMode == 't':
-            x = self.borderTop.geometry().left()
-            y = self.y2
-            w = self.borderTop.geometry().width()
-            h = self.borderLeft.geometry().height() + self.borderLeft.geometry().top() - self.y2
-        #elif self.grabMode == 'b':
-        #elif self.grabMode == 'lt':
-        #elif self.grabMode == 'rt':
-        #elif self.grabMode == 'rb':
-        #elif self.grabMode == 'lb':
+        else:
+            hor = self.borderTop.geometry()
+            ver = self.borderLeft.geometry()
+            if self.grabMode == 'l':
+                if self.x2 > hor.right():
+                    x = hor.right() + 1
+                    w = 0
+                else:
+                    x = self.x2
+                    w = hor.right() - self.x2 + 1
+                y = ver.top()
+                h = ver.height()
+            elif self.grabMode == 'r':
+                x = hor.left()
+                if self.x2 < hor.left():
+                    w = 0
+                else:
+                    w = self.x2 - hor.left()
+                y = ver.top()
+                h = ver.height()
+            elif self.grabMode == 't':
+                x = hor.left()
+                w = hor.width()
+                if self.y2 > ver.bottom():
+                    y = ver.bottom() + 1
+                    h = 0
+                else:
+                    y = self.y2
+                    h = ver.bottom() - self.y2 + 1
+            elif self.grabMode == 'b':
+                x = hor.left()
+                w = hor.width()
+                y = ver.top()
+                if self.y2 < ver.top():
+                    h = 0
+                else:
+                    h = self.y2 - ver.top()
+            elif self.grabMode == 'lt':
+                if self.x2 > hor.right():
+                    x = hor.right() + 1
+                    w = 0
+                else:
+                    x = self.x2
+                    w = hor.right() - self.x2 + 1
+                if self.y2 > ver.bottom():
+                    y = ver.bottom() + 1
+                    h = 0
+                else:
+                    y = self.y2
+                    h = ver.bottom() - self.y2 + 1
+            elif self.grabMode == 'rt':
+                x = hor.left()
+                if self.x2 < hor.left():
+                    w = 0
+                else:
+                    w = self.x2 - hor.left()
+                if self.y2 > ver.bottom():
+                    y = ver.bottom() + 1
+                    h = 0
+                else:
+                    y = self.y2
+                    h = ver.bottom() - self.y2 + 1
+            elif self.grabMode == 'rb':
+                x = hor.left()
+                if self.x2 < hor.left():
+                    w = 0
+                else:
+                    w = self.x2 - hor.left()
+                y = ver.top()
+                if self.y2 < ver.top():
+                    h = 0
+                else:
+                    h = self.y2 - ver.top()
+            elif self.grabMode == 'lb':
+                if self.x2 > hor.right():
+                    x = hor.right() + 1
+                    w = 0
+                else:
+                    x = self.x2
+                    w = hor.right() - self.x2 + 1
+                y = ver.top()
+                if self.y2 < ver.top():
+                    h = 0
+                else:
+                    h = self.y2 - ver.top()
 
 
         #grab border
