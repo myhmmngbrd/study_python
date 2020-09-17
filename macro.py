@@ -49,14 +49,17 @@ class MainWindow(QtWidgets.QWidget):
 
     def addWidget(self):
         self.boardcontents.offset += 1
-        test = QtWidgets.QLabel('test')
+        test = QtWidgets.QWidget('test')
         test.setFixedHeight(30)
+        test.clicked = self.test
 #        test.setStyleSheet('background:black')
         self.boardlayout.addWidget(test)
         self.boardcontents.setFixedHeight(self.boardcontents.offset * 30)
 
-        
-        
+    def mousePressEvent(self, event):
+        print(self)
+    def test(self, event):
+        print(self.button())            
 
 if __name__ == '__main__':
     import sys
