@@ -39,9 +39,25 @@ class GrabWindow(QtWidgets.QDialog):
         self.vertexRB = QtWidgets.QWidget(self)
         self.vertexLB = QtWidgets.QWidget(self)
 
+        self.borderLeft.resize(0,0)
+        self.borderRight.resize(0,0)
+        self.borderTop.resize(0,0)
+        self.borderBottom.resize(0,0)
+        self.vertexLT.resize(0,0)
+        self.vertexRT.resize(0,0)
+        self.vertexRB.resize(0,0)
+        self.vertexLB.resize(0,0)
+        
+
         #grab status
         self.status = QtWidgets.QWidget(self)
-        stautslayout = QtWidgets.QHBoxLayout(self.status)
+        statuslayout = QtWidgets.QHBoxLayout(self.status)
+
+        self.status.setContentsMargins(0,0,0,0)
+        statuslayout.setContentsMargins(0,0,0,0)
+        statuslayout.setSpacing(0)
+
+        self.status.setFixedWidth(230)
         
         #status - location
         self.labelX1 = QtWidgets.QLabel('x1: ')
@@ -53,27 +69,30 @@ class GrabWindow(QtWidgets.QDialog):
         self.inputX2 = QtWidgets.QLineEdit()
         self.inputY2 = QtWidgets.QLineEdit()
 
-        stautslayout.addWidget(self.labelX1)
-        stautslayout.addWidget(self.inputX1)
-        stautslayout.addWidget(self.labelY1)
-        stautslayout.addWidget(self.inputY1)
-        stautslayout.addWidget(self.labelX2)
-        stautslayout.addWidget(self.inputX2)
-        stautslayout.addWidget(self.labelY2)
-        stautslayout.addWidget(self.inputY2)
+        statuslayout.addWidget(self.labelX1)
+        statuslayout.addWidget(self.inputX1)
+        statuslayout.addWidget(self.labelY1)
+        statuslayout.addWidget(self.inputY1)
+        statuslayout.addWidget(self.labelX2)
+        statuslayout.addWidget(self.inputX2)
+        statuslayout.addWidget(self.labelY2)
+        statuslayout.addWidget(self.inputY2)
+
+        self.okbtn = QtWidgets.QPushButton('ok')
+        statuslayout.addWidget(self.okbtn)
 
     def initStyle(self):
         #left border
-        self.borderLeft.setStyleSheet('border-right:2px solid green')
+        self.borderLeft.setStyleSheet('border-right:2px solid red')
         self.borderLeft.setCursor(QtGui.QCursor(QtCore.Qt.SizeHorCursor))
         #right border
         self.borderRight.setStyleSheet('border-left:2px solid green')
         self.borderRight.setCursor(QtGui.QCursor(QtCore.Qt.SizeHorCursor))
         #top border
-        self.borderTop.setStyleSheet('border-bottom:2px solid green')
+        self.borderTop.setStyleSheet('border-bottom:2px solid yellow')
         self.borderTop.setCursor(QtGui.QCursor(QtCore.Qt.SizeVerCursor))
         #bottom border
-        self.borderBottom.setStyleSheet('border-top:2px solid green')
+        self.borderBottom.setStyleSheet('border-top:2px solid blue')
         self.borderBottom.setCursor(QtGui.QCursor(QtCore.Qt.SizeVerCursor))
         #left top vertex
         self.vertexLT.setStyleSheet(
@@ -100,6 +119,9 @@ class GrabWindow(QtWidgets.QDialog):
         )
         self.vertexLB.setCursor(QtGui.QCursor(QtCore.Qt.SizeAllCursor))
 
+        #status
+        #inputbox
+
     def initEventTrigger(self):
         self.borderLeft.mousePressEvent = lambda event: self.mousePressEvent(event, 'l')
         self.borderRight.mousePressEvent = lambda event: self.mousePressEvent(event, 'r')
@@ -109,6 +131,13 @@ class GrabWindow(QtWidgets.QDialog):
         self.vertexRT.mousePressEvent = lambda event: self.mousePressEvent(event, 'rt')
         self.vertexRB.mousePressEvent = lambda event: self.mousePressEvent(event, 'rb')
         self.vertexLB.mousePressEvent = lambda event: self.mousePressEvent(event, 'lb')
+
+        self.inputX1.returnPressed.connect(self.modifyGrabArea)
+        self.inputY1.returnPressed.connect(self.modifyGrabArea)
+        self.inputX2.returnPressed.connect(self.modifyGrabArea)
+        self.inputY2.returnPressed.connect(self.modifyGrabArea)
+
+        self.okbtn.clicked.connect(self.save)
 
     #event trigger
     def mousePressEvent(self, event, mode = None):
@@ -122,7 +151,7 @@ class GrabWindow(QtWidgets.QDialog):
         if self.mousePressed:
             self.x2 = event.x()
             self.y2 = event.y()
-            self.grab()
+            self.mouseGrab()
     def paintEvent(self, event):
         self.paint()
 
@@ -138,7 +167,7 @@ class GrabWindow(QtWidgets.QDialog):
 
         #grab border
 
-    def grab(self):
+    def mouseGrab(self):
         ## self.x2 범위 제한 필요
         if not self.grabMode:
             x = min(self.x1, self.x2)
@@ -230,8 +259,33 @@ class GrabWindow(QtWidgets.QDialog):
                     h = 0
                 else:
                     h = self.y2 - ver.top()
+        self.grab(x, y, w, h)
 
+    def modifyGrabArea(self):
+        x1 = self.inputX1.text()
+        y1 = self.inputY1.text()
+        x2 = self.inputX2.text()
+        y2 = self.inputY2.text()
 
+        if not (x1 + y1 + x2 + y2).isdecimal():
+            #영역지정 안하면 오류뜸
+            #self.inputX1.setText(str(self.x))
+            #self.inputY1.setText(str(self.y))
+            #self.inputY1.setText(str(self.x + self.w))
+            #self.inputY1.setText(str(self.y + self.h))
+            return
+        x = int(x1)
+        y = int(y1)
+        w = int(x2) - int(x1)
+        h = int(y2) - int(y1)
+        sw = self.screen().geometry().width()
+        sh = self.screen().geometry().height()
+        if x < 0 or x > sw or w < 0 or w > sw or y < 0 or y > sh or h < 0 or h > sh:
+            return
+
+        self.grab(x, y, w, h)
+
+    def grab(self, x, y, w, h):
         #grab border
         self.borderLeft.setGeometry(x - 10, y, 10, h)
         self.borderRight.setGeometry(x + w, y, 10, h)
@@ -243,20 +297,67 @@ class GrabWindow(QtWidgets.QDialog):
         self.vertexRB.setGeometry(x + w, y + h, 10, 10)
         self.vertexLB.setGeometry(x - 10, y + h, 10, 10)
 
+        #status bar
+        self.status.move(min(x + 20, self.screen().geometry().width() - self.status.geometry().width() - 20),min(y + 20, self.screen().geometry().height() - self.status.geometry().height() - 50))
+        self.inputX1.setText(str(x))
+        self.inputY1.setText(str(y))
+        self.inputX2.setText(str(x+w))
+        self.inputY2.setText(str(y+h))
+
 
         #set mask
         self.region = QtGui.QRegion(self.screen().availableGeometry())
         self.region -= QtGui.QRegion(x, y, w, h)
+        self.region += QtGui.QRegion(self.status.geometry())
         self.setMask(self.region)
 
-        #꼭지점 영역설정하고, 그리고, 마우스 커서 변경해주고, 드래그로 확대하는 기능 만들기
+        #전역화하는게 맞는가?
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
 
+    def save(self):
+        self.accept()
+
+class MainWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setMouseTracking(True)
+
+        self.resize(200,200)
+        
+        self.grabbtn = QtWidgets.QPushButton('capture', self)
+        self.grabbtn.clicked.connect(self.grab)
+        
+        self.caturebtn = QtWidgets.QPushButton('screenshot', self)
+        self.caturebtn.clicked.connect(self.cature)
+
+
+
+    def grab(self):
+        grabwidget = GrabWindow()
+        r = grabwidget.exec_()
+
+        if r:
+            print(grabwidget.x)
+            print(grabwidget.y)
+            print(grabwidget.w)
+            print(grabwidget.h)
+            self.x = grabwidget.x
+            self.y = grabwidget.y
+            self.w = grabwidget.w
+            self.h = grabwidget.h
+
+    def cature(self):
+        
 
 if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
 
-    myapp = GrabWindow()
+    myapp = MainWindow()
     myapp.show()
 
     sys.exit(app.exec_())

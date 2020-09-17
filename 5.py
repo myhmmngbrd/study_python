@@ -4,6 +4,7 @@ from PyQt5.QtCore import *
 
 
 class MainWindow(QMainWindow):
+    offset = 0
     def __init__(self):
         super().__init__()
         self.initUI()
