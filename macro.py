@@ -15,7 +15,9 @@ class MainWindow(QtWidgets.QWidget):
         layout.setContentsMargins(0,0,0,0)
         layout.setSpacing(10)
 
+        #board, tool
         board = self.board = QtWidgets.QScrollArea(self)
+        board.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         #board.setWidgetResizable(True)
         tools = self.tools = QtWidgets.QWidget(self)
         layout.addWidget(board)
@@ -24,42 +26,80 @@ class MainWindow(QtWidgets.QWidget):
         board.setStyleSheet('background:#ddd')
         tools.setStyleSheet('background:#ddd')
 
-        boardcontents = self.boardcontents = QtWidgets.QWidget()
-        boardcontents.setStyleSheet('background:red')
-        boardcontents.resize(100,0)
-        boardcontents.offset = 0
-        board.setWidget(boardcontents)
+        print(board.geometry())
 
-        boardlayout = self.boardlayout = QtWidgets.QVBoxLayout()
+        #board contents
+        bc = self.boardcontents = QtWidgets.QWidget()
+        bc.resize(board.geometry().width(), 0)
+        bc.offset = 0
+        board.setWidget(bc)
+
+        bl = self.boardlayout = QtWidgets.QVBoxLayout()
         #boardlayout.setAlignment(QtCore.Qt.AlignTop)
-        boardcontents.setLayout(boardlayout)
+        bc.setLayout(bl)
        
-        boardcontents.setContentsMargins(10,0,0,0)
-        boardlayout.setContentsMargins(0,0,0,0)
-        boardlayout.setSpacing(0)
+        bc.setContentsMargins(0,0,0,0)
+        bl.setContentsMargins(0,0,0,0)
+        bl.setSpacing(0)
 
-        toolslayout = self.toolslayout = QtWidgets.QVBoxLayout(tools)
-        toolslayout.setAlignment(QtCore.Qt.AlignTop)
+        self.orders = []
+        #tools contents
+        tl = self.toolslayout = QtWidgets.QVBoxLayout(tools)
+        tl.setAlignment(QtCore.Qt.AlignTop)
 
         addbtn = self.addbtn = QtWidgets.QPushButton('add')
         addbtn.clicked.connect(self.addWidget)
-        toolslayout.addWidget(addbtn)
+        tl.addWidget(addbtn)
 
+    def resizeEvent(self, event):
+        self.boardcontents.setFixedWidth(self.board.geometry().width())
 
 
     def addWidget(self):
+        offset = self.boardcontents.offset
         self.boardcontents.offset += 1
-        test = QtWidgets.QWidget('test')
-        test.setFixedHeight(30)
-        test.clicked = self.test
-#        test.setStyleSheet('background:black')
-        self.boardlayout.addWidget(test)
-        self.boardcontents.setFixedHeight(self.boardcontents.offset * 30)
+        
+        order = Order()#QtWidgets.QWidget()
+        #order.mousePressEvent = lambda event: self.test(event, order)
+        self.orders.append(order)
 
+        self.boardlayout.addWidget(order)
+        self.boardcontents.setFixedHeight((offset + 1) * 30)
+
+        print(self.boardcontents.children()[offset + 1].childrenRect())
+
+class Order(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        #self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+        bg = self.background = QtWidgets.QWidget(self)
+        bg.resize(self.rect().width(), self.rect().height())
+
+#        QtWidgets.QLabel('test',bg)
+
+        bl = self.backgroundlayout = QtWidgets.QVBoxLayout()
+        bg.setLayout(bl)
+
+        test = QtWidgets.QLabel('test')
+        bl.addWidget(test)
+
+        print(test.geometry())
+
+        
     def mousePressEvent(self, event):
-        print(self)
-    def test(self, event):
-        print(self.button())            
+        self.parent().setStyleSheet('background:red')
+        self.setFocus()
+
+    def focusInEvent(self, event):
+        print('focusin')
+        self.setStyleSheet('''
+            background:blue;
+            color:white;
+        ''')
+
+    def focusOutEvent(self, event):
+        print('focusout')
 
 if __name__ == '__main__':
     import sys
