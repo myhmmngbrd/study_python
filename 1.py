@@ -1,134 +1,105 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
-class VLine(QtWidgets.QFrame):
-    # a simple VLine, like the one you get from designer
-    def __init__(self):
-        super(VLine, self).__init__()
-        self.setFrameShape(self.VLine|self.Sunken)
+StyleSheet = '''
+QPushButton#BlueButton {
+    background-color: #2196f3;
+    /* Ограничьте минимальный размер */
+    min-width:  96px;
+    max-width:  96px;
+    min-height: 96px;
+    max-height: 96px;
+    border-radius: 48px;        /* круглый */
+}
+
+QPushButton#BlueButton:hover {
+    background-color: #64b5f6;
+    color: #fff;
+}
+
+QPushButton#BlueButton:pressed {
+    background-color: #bbdefb;
+}
+'''
 
 
-class Grabber(QtWidgets.QWidget):
-    dirty = True
-    def __init__(self):
-        super(Grabber, self).__init__()
-        self.setWindowTitle('Screen grabber')
-        # ensure that the widget always stays on top, no matter what
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+class Window2(QtWidgets.QDialog):
+    def __init__(self, value, parent=None):
+        super().__init__(parent)
+        self.setGeometry(750, 100, 300, 300)
+        self.parent = parent
+        self.setWindowTitle('Window2')
+        self.setWindowIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileDialogInfoView))
 
-        layout = QtWidgets.QVBoxLayout()
-        self.setLayout(layout)
-        # limit widget AND layout margins
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        label1 = QtWidgets.QLabel(value)
+        self.button = QtWidgets.QPushButton()
+        self.button.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowLeft))
+        self.button.setIconSize(QtCore.QSize(200, 200))
 
-        # create a "placeholder" widget for the screen grab geometry
-        self.grabWidget = QtWidgets.QWidget()
-        self.grabWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        layout.addWidget(self.grabWidget)
+        layoutV = QtWidgets.QVBoxLayout()
+        self.pushButton = QtWidgets.QPushButton(self)
+        self.pushButton.setStyleSheet('background-color: rgb(0,0,255); color: #fff')
+        self.pushButton.setText('Click me!')
+        self.pushButton.clicked.connect(self.goMainWindow)
+        layoutV.addWidget(self.pushButton)
 
-        # let's add a configuration panel
-        self.panel = QtWidgets.QWidget()
-        layout.addWidget(self.panel)
+        layoutH = QtWidgets.QHBoxLayout()
+        layoutH.addWidget(label1)
+        layoutH.addWidget(self.button)
+        layoutV.addLayout(layoutH)
+        self.setLayout(layoutV)
 
-        panelLayout = QtWidgets.QHBoxLayout()
-        self.panel.setLayout(panelLayout)
-        panelLayout.setContentsMargins(0, 0, 0, 0)
-        self.setContentsMargins(1, 1, 1, 1)
+    def goMainWindow(self):
+        self.parent.show()
+        self.close()   
 
-        self.configButton = QtWidgets.QPushButton(self.style().standardIcon(QtWidgets.QStyle.SP_ComputerIcon), '')
-        self.configButton.setFlat(True)
-        panelLayout.addWidget(self.configButton)
 
-        panelLayout.addWidget(VLine())
+class Widget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super(Widget, self).__init__(parent)
+        self.setGeometry(400, 100, 300, 300)
 
-        self.fpsSpinBox = QtWidgets.QSpinBox()
-        panelLayout.addWidget(self.fpsSpinBox)
-        self.fpsSpinBox.setRange(1, 50)
-        self.fpsSpinBox.setValue(15)
-        panelLayout.addWidget(QtWidgets.QLabel('fps'))
+        hlay = QtWidgets.QHBoxLayout()
+        hlay.addStretch(1)
 
-        panelLayout.addWidget(VLine())
+        vlay = QtWidgets.QVBoxLayout(self)
+        vlay.addStretch(1)
 
-        self.widthLabel = QtWidgets.QLabel()
-        panelLayout.addWidget(self.widthLabel)
-        self.widthLabel.setFrameShape(QtWidgets.QLabel.StyledPanel|QtWidgets.QLabel.Sunken)
+        self.btn = QtWidgets.QPushButton("Press me", objectName="BlueButton")
+        self.btn.clicked.connect(self.btn_onClick)
+        self.btn.installEventFilter(self)
+        hlay.addWidget(self.btn)
+        hlay.addStretch(1)
 
-        panelLayout.addWidget(QtWidgets.QLabel('x'))
+        vlay.addLayout(hlay)
+        self.lineEdit = QtWidgets.QLineEdit("Type here what you want to transfer for [Window2].")
+        vlay.addWidget(self.lineEdit)
+        vlay.addStretch(1)
+        self.setLayout(vlay)
 
-        self.heightLabel = QtWidgets.QLabel()
-        panelLayout.addWidget(self.heightLabel)
-        self.heightLabel.setFrameShape(QtWidgets.QLabel.StyledPanel|QtWidgets.QLabel.Sunken)
+    def eventFilter(self, obj, event):
+        if obj == self.btn and event.type() == QtCore.QEvent.HoverEnter:
+            self.onHovered()
+        return super(Widget, self).eventFilter(obj, event)
 
-        panelLayout.addWidget(QtWidgets.QLabel('px'))
+    def onHovered(self):
+        #print("hovered")
+        self.btn.setText("Ok, \nbutton onHovered")    # <---
 
-        panelLayout.addWidget(VLine())
+    def leaveEvent(self, e):
+        self.btn.setText("Press me")                  # <---
 
-        self.recButton = QtWidgets.QPushButton('rec')
-        panelLayout.addWidget(self.recButton)
-
-        self.playButton = QtWidgets.QPushButton('play')
-        panelLayout.addWidget(self.playButton)
-
-        panelLayout.addStretch(1000)
-
-    def updateMask(self):
-        # get the *whole* window geometry, including its titlebar and borders
-        frameRect = self.frameGeometry()
-
-        # get the grabWidget geometry and remap it to global coordinates
-        grabGeometry = self.grabWidget.geometry()
-        grabGeometry.moveTopLeft(self.grabWidget.mapToGlobal(QtCore.QPoint(0, 0)))
-
-        # get the actual margins between the grabWidget and the window margins
-        left = frameRect.left() - grabGeometry.left()
-        top = frameRect.top() - grabGeometry.top()
-        right = frameRect.right() - grabGeometry.right()
-        bottom = frameRect.bottom() - grabGeometry.bottom()
-
-        # reset the geometries to get "0-point" rectangles for the mask
-        frameRect.moveTopLeft(QtCore.QPoint(0, 0))
-        grabGeometry.moveTopLeft(QtCore.QPoint(0, 0))
-
-        # create the base mask region, adjusted to the margins between the
-        # grabWidget and the window as computed above
-        region = QtGui.QRegion(frameRect.adjusted(left, top, right, bottom))
-        # "subtract" the grabWidget rectangle to get a mask that only contains
-        # the window titlebar, margins and panel
-        region -= QtGui.QRegion(grabGeometry)
-        self.setMask(region)
-
-        # update the grab size according to grabWidget geometry
-        self.widthLabel.setText(str(self.grabWidget.width()))
-        self.heightLabel.setText(str(self.grabWidget.height()))
-
-    def resizeEvent(self, event):
-        super(Grabber, self).resizeEvent(event)
-        # the first resizeEvent is called *before* any first-time showEvent and
-        # paintEvent, there's no need to update the mask until then; see below
-        if not self.dirty:
-            self.updateMask()
-
-    def paintEvent(self, event):
-        super(Grabber, self).paintEvent(event)
-        # on Linux the frameGeometry is actually updated "sometime" after show()
-        # is called; on Windows and MacOS it *should* happen as soon as the first
-        # non-spontaneous showEvent is called (programmatically called: showEvent
-        # is also called whenever a window is restored after it has been
-        # minimized); we can assume that all that has already happened as soon as
-        # the first paintEvent is called; before then the window is flagged as
-        # "dirty", meaning that there's no need to update its mask yet.
-        # Once paintEvent has been called the first time, the geometries should
-        # have been already updated, we can mark the geometries "clean" and then
-        # actually apply the mask.
-        if self.dirty:
-            self.updateMask()
-            self.dirty = False
-
+    @QtCore.pyqtSlot()
+    def btn_onClick(self):
+        self.cams = Window2(self.lineEdit.text(), self) 
+        self.cams.show()
 
 if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
-    grabber = Grabber()
-    grabber.show()
+
+    app.setStyleSheet(StyleSheet)                     # <---
+
+    w = Widget()
+    w.show()
     sys.exit(app.exec_())
