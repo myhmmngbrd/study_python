@@ -19,7 +19,7 @@ class Main(QtWidgets.QWidget):
 
         #click
         clickbtn = QtWidgets.QPushButton('click')
-        clickbtn.clicked.connect(lambda event: self.measure('click'))
+        clickbtn.clicked.connect(lambda event: self.notMeasure('click'))
         tools.addWidget(clickbtn)
         
         #mousemove
@@ -43,6 +43,12 @@ class Main(QtWidgets.QWidget):
 
         tools.addWidget(sleepwidget)
 
+        hline = QtWidgets.QFrame()
+        hline.setFrameShape(QtWidgets.QFrame.HLine)
+        hline.setStyleSheet('color:#888')
+        tools.addWidget(hline)
+
+        #modify tools
         editbtn = QtWidgets.QPushButton('edit')
         editbtn.clicked.connect(lambda event: self.measure())
         editbtn.setDisabled(True)
@@ -70,18 +76,34 @@ class Main(QtWidgets.QWidget):
         movedownbtn = QtWidgets.QPushButton('movedown')
         movedownbtn.setDisabled(True)
         movedownbtn.clicked.connect(lambda event: self.movedown())
-
         board.dependentbtns.append(movedownbtn)
         tools.addWidget(movedownbtn)
+
+        hline = QtWidgets.QFrame()
+        hline.setFrameShape(QtWidgets.QFrame.HLine)
+        hline.setStyleSheet('color:#888')
+        tools.addWidget(hline)
+
+        startbtn = QtWidgets.QPushButton('start')
+        startbtn.clicked.connect(lambda event: self.start())
+        tools.addWidget(startbtn)
 
     def measure(self, taskType = None):
         if not taskType:
             task = self.board.selected
             taskType = task.taskType
-            task.setTask(taskType,{'x': 3, 'y': 4})
+            ruler = Ruler()
+            ruler.setStatus(taskType)
+            r = ruler.exec_()
+            if r:
+                task.setTask(taskType, ruler.resultValues)
         else:
             task = Task()
-            task.setTask(taskType,{'x': 1, 'y': 2})
+            ruler = Ruler()
+            ruler.setStatus(taskType)
+            r = ruler.exec_()
+            if r:
+                task.setTask(taskType, ruler.returnValues)
             self.board.addWidget(task)
 
         if not task: #선택된 위젯이 없는데 이 함수가 호출된 경우
@@ -89,6 +111,12 @@ class Main(QtWidgets.QWidget):
             return
 
          #측정 다이얼로그
+
+    def notMeasure(self, taskType):
+        task = Task()
+        task.setTask(taskType, {})
+        self.board.addWidget(task)
+
 
     def copy(self):
         obj = self.board.selected
@@ -117,8 +145,8 @@ class Main(QtWidgets.QWidget):
         self.board.layout.removeWidget(wd)
         self.board.layout.insertWidget(index, wd)
 
-
-
+    def start(self):
+        print('start...')
 
 class Board(QtWidgets.QScrollArea):
     defualtStyle = 'background:#ddd; color:black; '
@@ -185,12 +213,95 @@ class Tools(QtWidgets.QWidget):
 
     def addWidget(self, widget):
         self.layout.addWidget(widget)
-        
+
+class Ruler(QtWidgets.QDialog):
+    taskType = None
+    returnValues = {}
+    def __init__(self):
+        super().__init__()
+
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setMouseTracking(True)
+
+        screenW = self.screenW = self.screen().geometry().width()
+        screenH = self.screenH = self.screen().geometry().height()
+        self.setGeometry(0,0, screenW, screenH)
+
+        self.status = QtWidgets.QWidget(self)
+        self.status.setStyleSheet('background:#333; color:#aaa')
+        self.statuslayout = QtWidgets.QHBoxLayout()
+        self.status.setLayout(self.statuslayout)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.setOpacity(0.2)
+        painter.setBrush(QtCore.Qt.white)
+        painter.setPen(QtCore.Qt.white)
+        painter.drawRect(self.rect())
+
+    def addWidget(self, widget):
+        self.statuslayout.addWidget(widget)
+
+    def setStatus(self, taskType):
+        self.taskType = taskType
+        if taskType == 'mousemove':
+            print('mousemove')
+            x = ps.position().x
+            y = ps.position().y
+            self.addWidget(QtWidgets.QLabel('x: '))
+            posX = self.posX = QtWidgets.QLabel(str(x))
+            posX.setFixedWidth(25)
+            self.addWidget(posX)
+            self.addWidget(QtWidgets.QLabel(', y: '))
+            posY = self.posY = QtWidgets.QLabel(str(y))
+            posY.setFixedWidth(25)
+            self.addWidget(posY)
+
+            if x + 20 > self.screenW - self.status.geometry().width() - 20:
+                x = x - self.status.geometry().width() - 20
+            else:
+                x += 20
+            if y + 10 > self.screenH - self.status.geometry().height() - 40:
+                y = y - self.status.geometry().height() - 40
+            else:
+                y += 10
+            self.status.move(x, y)
+
+    def mouseMoveEvent(self, event):
+        if self.taskType == 'mousemove':
+            x = event.x()
+            y = event.y()
+            self.posX.setText(str(x))
+            self.posY.setText(str(y))
+            if x + 20 > self.screenW - self.status.geometry().width() - 20:
+                x = x - self.status.geometry().width() - 20
+            else:
+                x += 20
+            if y + 10 > self.screenH - self.status.geometry().height() - 40:
+                y = y - self.status.geometry().height() - 20
+            else:
+                y += 10
+            self.status.move(x, y)
+
+    def mousePressEvent(self, event):
+        if self.taskType == 'mousemove':
+            self.x = event.x()
+            self.y = event.y()
+    def mouseReleaseEvent(self, event):
+        if self.taskType == 'mousemove':
+            if self.x == event.x() and self.y == event.y():
+                self.returnValues = {'x': self.x, 'y': self.y}
+                self.accept()
+                
+
+
 if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
 
     myapp = Main()
+#    myapp = Ruler()
     myapp.show()
 
     sys.exit(app.exec_())
