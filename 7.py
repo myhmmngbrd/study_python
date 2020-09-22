@@ -6,7 +6,7 @@ class Main(QtWidgets.QWidget):
         super().__init__()
 
         self.resize(500,500)
-    
+    #layout    
         ly = QtWidgets.QHBoxLayout()
         self.setLayout(ly)
 
@@ -17,40 +17,70 @@ class Main(QtWidgets.QWidget):
         tools.setFixedWidth(120)
         ly.addWidget(tools)
 
-        #click
+    #click
         clickbtn = QtWidgets.QPushButton('click')
         clickbtn.clicked.connect(lambda event: self.notMeasure('click'))
         tools.addWidget(clickbtn)
         
-        #mousemove
+    #mousemove
         mousemovebtn = QtWidgets.QPushButton('mousemove')
-        mousemovebtn.clicked.connect(lambda event: self.measure('mousemove'))
+        mousemovebtn.clicked.connect(lambda event: self.measure('mousemove', 'px'))
         tools.addWidget(mousemovebtn)
-       
-        #sleep
+
+    #presskey
+        keybtn = QtWidgets.QPushButton('key')
+        keybtn.clicked.connect(lambda event: self.measure('key'))
+        tools.addWidget(keybtn)
+
+    #capture
+        capturebtn = QtWidgets.QPushButton('capture')
+        capturebtn.clicked.connect(lambda event: self.measure('cature'))
+
+    #sleep
         sleepwidget = QtWidgets.QWidget()
         sleepwidget.setContentsMargins(0,0,0,0)
         sleeplayout = QtWidgets.QHBoxLayout()
         sleeplayout.setContentsMargins(0,0,0,0)
+        sleeplayout.setSpacing(0)
         sleepwidget.setLayout(sleeplayout)
 
         sleepinput = QtWidgets.QLineEdit()
         sleepinput.setFixedWidth(30)
         sleeplayout.addWidget(sleepinput)
         sleepbtn = QtWidgets.QPushButton('sleep')
-        sleepbtn.clicked.connect(lambda event: self.measure('sleep'))
+        sleepbtn.clicked.connect(lambda event: self.sleep(sleepinput.text()))
         sleeplayout.addWidget(sleepbtn)
 
         tools.addWidget(sleepwidget)
 
+    #loop
+        loopwidget = QtWidgets.QWidget()
+        loopwidget.setContentsMargins(0,0,0,0)
+        looplayout = QtWidgets.QHBoxLayout()
+        looplayout.setContentsMargins(0,0,0,0)
+        looplayout.setSpacing(0)
+        loopwidget.setLayout(looplayout)
+
+        loopinput = QtWidgets.QLineEdit()
+        loopinput.setFixedWidth(30)
+        looplayout.addWidget(loopinput)
+        loopbtn = QtWidgets.QPushButton('loop')
+        looplayout.addWidget(loopbtn)
+        loopendbtn = QtWidgets.QPushButton('end')
+        looplayout.addWidget(loopendbtn)
+
+        tools.addWidget(loopwidget)
+
+    #line
         hline = QtWidgets.QFrame()
         hline.setFrameShape(QtWidgets.QFrame.HLine)
         hline.setStyleSheet('color:#888')
         tools.addWidget(hline)
 
-        #modify tools
+    #modify tools
+
         editbtn = QtWidgets.QPushButton('edit')
-        editbtn.clicked.connect(lambda event: self.measure())
+        editbtn.clicked.connect(self.edit)
         editbtn.setDisabled(True)
         board.dependentbtns.append(editbtn)
         tools.addWidget(editbtn)
@@ -78,44 +108,56 @@ class Main(QtWidgets.QWidget):
         movedownbtn.clicked.connect(lambda event: self.movedown())
         board.dependentbtns.append(movedownbtn)
         tools.addWidget(movedownbtn)
-
+    
+    #line
         hline = QtWidgets.QFrame()
         hline.setFrameShape(QtWidgets.QFrame.HLine)
         hline.setStyleSheet('color:#888')
         tools.addWidget(hline)
 
+    #start
         startbtn = QtWidgets.QPushButton('start')
         startbtn.clicked.connect(lambda event: self.start())
         tools.addWidget(startbtn)
 
-    def measure(self, taskType = None):
+    #func
+
+    def measure(self, taskType = None, unit = None):
         if not taskType:
             task = self.board.selected
             taskType = task.taskType
-            ruler = Ruler()
-            ruler.setStatus(taskType)
-            r = ruler.exec_()
-            if r:
-                task.setTask(taskType, ruler.resultValues)
+            if not task: #선택된 위젯이 없는데 이 함수가 호출된 경우
+                print('버튼이 비활성화 되어 있어야 합니다')
+                return
         else:
-            task = Task()
             ruler = Ruler()
             ruler.setStatus(taskType)
             r = ruler.exec_()
             if r:
-                task.setTask(taskType, ruler.returnValues)
-            self.board.addWidget(task)
-
-        if not task: #선택된 위젯이 없는데 이 함수가 호출된 경우
-            print('버튼이 비활성화 되어 있어야 합니다')
-            return
-
-         #측정 다이얼로그
+                task = Task()
+                task.setTask(taskType, ruler.returnValues, unit)
+                self.board.addWidget(task)
 
     def notMeasure(self, taskType):
         task = Task()
         task.setTask(taskType, {})
         self.board.addWidget(task)
+
+    def sleep(self, time):
+        if not time.isdigit():
+            return
+        task = Task()
+        task.setTask('sleep', [time ], 's')
+        self.board.addWidget(task)
+
+    def edit(self):
+        obj = self.board.selected
+        taskType = obj.taskType
+        ruler = Ruler()
+        ruler.setStatus(taskType)
+        r = ruler.exec_()
+        if r:
+            obj.setTask(taskType, ruler.returnValues)
 
 
     def copy(self):
@@ -193,13 +235,17 @@ class Task(QtWidgets.QLabel):
     def __init__(self):
         super().__init__()
 
-    def setTask(self, taskType, options):
+    def setTask(self, taskType, options, unit = None):
         self.taskType = taskType
         self.options = options
         
         text = taskType
-        for key, value in options.items():
-            text += ', ' + str(key) + ': ' + str(value)
+        if type(options) == type({}):
+            for key, value in options.items():
+                text += ', ' + str(key) + ': ' + str(value) + unit
+        elif type(options) == type([]):
+            for value in options:
+                text += ', ' + str(value) + unit
         self.setText(text)
 
 class Tools(QtWidgets.QWidget):
@@ -267,6 +313,9 @@ class Ruler(QtWidgets.QDialog):
             else:
                 y += 10
             self.status.move(x, y)
+        if taskType == 'key':
+            print('key')
+            self.addWidget(QtWidgets.QLabel('Press any key'))
 
     def mouseMoveEvent(self, event):
         if self.taskType == 'mousemove':
@@ -293,7 +342,11 @@ class Ruler(QtWidgets.QDialog):
             if self.x == event.x() and self.y == event.y():
                 self.returnValues = {'x': self.x, 'y': self.y}
                 self.accept()
-                
+
+    def keyPressEvent(self, event):
+        print(event.key())
+        print(event.text())
+       
 
 
 if __name__ == '__main__':
