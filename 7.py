@@ -65,8 +65,10 @@ class Main(QtWidgets.QWidget):
         loopinput.setFixedWidth(30)
         looplayout.addWidget(loopinput)
         loopbtn = QtWidgets.QPushButton('loop')
+        loopbtn.clicked.connect(lambda event: self.loop(loopinput.text()))
         looplayout.addWidget(loopbtn)
         loopendbtn = QtWidgets.QPushButton('end')
+        loopendbtn.clicked.connect(lambda event: self.notMeasure('loop_end'))
         looplayout.addWidget(loopendbtn)
 
         tools.addWidget(loopwidget)
@@ -120,8 +122,7 @@ class Main(QtWidgets.QWidget):
         startbtn.clicked.connect(lambda event: self.start())
         tools.addWidget(startbtn)
 
-    #func
-
+#func
     def measure(self, taskType = None, unit = None):
         if not taskType:
             task = self.board.selected
@@ -148,6 +149,13 @@ class Main(QtWidgets.QWidget):
             return
         task = Task()
         task.setTask('sleep', [time ], 's')
+        self.board.addWidget(task)
+
+    def loop(self, count):
+        if not count.isdigit():
+            return
+        task = Task()
+        task.setTask('loop', [count ])
         self.board.addWidget(task)
 
     def edit(self):
@@ -235,7 +243,7 @@ class Task(QtWidgets.QLabel):
     def __init__(self):
         super().__init__()
 
-    def setTask(self, taskType, options, unit = None):
+    def setTask(self, taskType, options, unit = ''):
         self.taskType = taskType
         self.options = options
         
@@ -346,6 +354,7 @@ class Ruler(QtWidgets.QDialog):
     def keyPressEvent(self, event):
         print(event.key())
         print(event.text())
+        print(QtCore.QMetaEnum().key(event.key()))
        
 
 
