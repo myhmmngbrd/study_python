@@ -1,6 +1,31 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
 import pyautogui as ps
 
+keymap = {}
+for key, value in vars(QtCore.Qt).items():
+    if isinstance(value, QtCore.Qt.Key):
+        keymap[value] = key.partition('_')[2]
+
+#modmap = {
+#    QtCore.Qt.ControlModifier: keymap[QtCore.Qt.Key_Control],
+#    QtCore.Qt.AltModifier: keymap[QtCore.Qt.Key_Alt],
+#    QtCore.Qt.ShiftModifier: keymap[QtCore.Qt.Key_Shift],
+#    QtCore.Qt.MetaModifier: keymap[QtCore.Qt.Key_Meta],
+#    QtCore.Qt.GroupSwitchModifier: keymap[QtCore.Qt.Key_AltGr],
+#    QtCore.Qt.KeypadModifier: keymap[QtCore.Qt.Key_NumLock],
+#}
+
+def valueToKey(event):
+    sequence = []
+    #for modifier, text in modmap.items():
+        #if event.modifiers() & modifier:
+            #print(event.modifiers())
+            #sequence.append(text)
+    key = keymap.get(event.key(), event.text())
+    #if key not in sequence:
+    sequence.append(key)
+    return '+'.join(sequence)
+
 class Main(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
@@ -123,7 +148,7 @@ class Main(QtWidgets.QWidget):
         tools.addWidget(startbtn)
 
 #func
-    def measure(self, taskType = None, unit = None):
+    def measure(self, taskType = None, unit = ''):
         if not taskType:
             task = self.board.selected
             taskType = task.taskType
@@ -296,6 +321,8 @@ class Ruler(QtWidgets.QDialog):
 
     def addWidget(self, widget):
         self.statuslayout.addWidget(widget)
+    def move(self, x, y):
+        self.status.move(x, y)
 
     def setStatus(self, taskType):
         self.taskType = taskType
@@ -320,10 +347,19 @@ class Ruler(QtWidgets.QDialog):
                 y = y - self.status.geometry().height() - 40
             else:
                 y += 10
-            self.status.move(x, y)
+            self.move(x, y)
         if taskType == 'key':
             print('key')
-            self.addWidget(QtWidgets.QLabel('Press any key'))
+            self.status.setStyleSheet('background:none; color:#aaa')
+            sign = QtWidgets.QLabel('Press any key')
+            sign.setFont(QtGui.QFont('Arial', 30))
+            sign.setFixedWidth(300)
+            #sign.setAlignment(QtCore.Qt.AlignCenter)
+            self.addWidget(sign)
+            print(sign.geometry())
+            x = self.screenW * 0.5 - sign.geometry().width() / 2
+            y = self.screenH * 0.3 - self.status.geometry().height() / 2
+            self.move(int(x), int(y))
 
     def mouseMoveEvent(self, event):
         if self.taskType == 'mousemove':
@@ -339,7 +375,7 @@ class Ruler(QtWidgets.QDialog):
                 y = y - self.status.geometry().height() - 20
             else:
                 y += 10
-            self.status.move(x, y)
+            self.move(x, y)
 
     def mousePressEvent(self, event):
         if self.taskType == 'mousemove':
@@ -350,11 +386,15 @@ class Ruler(QtWidgets.QDialog):
             if self.x == event.x() and self.y == event.y():
                 self.returnValues = {'x': self.x, 'y': self.y}
                 self.accept()
-
     def keyPressEvent(self, event):
-        print(event.key())
-        print(event.text())
-        print(QtCore.QMetaEnum().key(event.key()))
+        if self.taskType == 'key':
+            if not hasattr(self, 'keys'):
+                self.keys = []
+            self.keys.append(str(valueToKey(event)))
+    def keyReleaseEvent(self, event):
+        if self.taskType == 'key' and hasattr(self, 'keys'):
+            self.returnValues = {'key': '+'.join(self.keys)}
+            self.accept()
        
 
 

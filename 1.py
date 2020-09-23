@@ -78,8 +78,13 @@ class Widget(QtWidgets.QWidget):
         self.setLayout(vlay)
 
     def eventFilter(self, obj, event):
-        if obj == self.btn and event.type() == QtCore.QEvent.HoverEnter:
-            self.onHovered()
+        if obj == self.btn:
+            if event.type() == QtCore.QEvent.Enter:
+                print('enter')
+            if event.type() == QtCore.QEvent.HoverEnter:
+                print('hover')
+        
+#        self.onHovered()
         return super(Widget, self).eventFilter(obj, event)
 
     def onHovered(self):
