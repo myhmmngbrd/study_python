@@ -28,27 +28,13 @@ for key, value in vars(QtCore.Qt).items():
     if isinstance(value, QtCore.Qt.Key):
         keymap[value] = key.partition('_')[2]
 
-modmap = {
-    QtCore.Qt.ControlModifier: keymap[QtCore.Qt.Key_Control],
-    QtCore.Qt.AltModifier: keymap[QtCore.Qt.Key_Alt],
-    QtCore.Qt.ShiftModifier: keymap[QtCore.Qt.Key_Shift],
-    QtCore.Qt.MetaModifier: keymap[QtCore.Qt.Key_Meta],
-    QtCore.Qt.GroupSwitchModifier: keymap[QtCore.Qt.Key_AltGr],
-    QtCore.Qt.KeypadModifier: keymap[QtCore.Qt.Key_NumLock],
-}
-
 def valueToKey(event):
-    sequence = []
-    for modifier, text in modmap.items():
-        if event.modifiers() & modifier:
-            sequence.append(text)
     key = keymap.get(event.key(), event.text())
-    if key not in sequence:
-        sequence.append(key)
-    return '+'.join(sequence)
+    return key
 
 class Main(QtWidgets.QWidget):
     pressedKeys = []
+    selected = []
     def __init__(self):
         super().__init__()
 
@@ -64,12 +50,18 @@ class Main(QtWidgets.QWidget):
         self.addTask('type1')
         self.addTask('type2', [0])
         self.addTask('type3', {'anyattr': 1}, 'unit')
+        self.addTask('type3', {'anyattr': 1}, 'unit')
+        self.addTask('type3', {'anyattr': 1}, 'unit')
+        self.addTask('type3', {'anyattr': 1}, 'unit')
+        self.addTask('type3', {'anyattr': 1}, 'unit')
+        self.addTask('type3', {'anyattr': 1}, 'unit')
+        self.addTask('type3', {'anyattr': 1}, 'unit')
+        self.addTask('type3', {'anyattr': 1}, 'unit')
 
     def addTask(self, taskType: str, options = None, unit: str = ''):
         task = Task()
         task.setTask(taskType, options, unit)
-        task.mousePressEvent = lambda event: self.select(event, task)
-        task.mouseReleaseEvent = lambda event: self.select(event, task)
+        task.mousePressEvent = lambda event: self.select(task)
         self.board.addWidget(task)
 
         # shift 눌린 경우,
@@ -95,11 +87,62 @@ class Main(QtWidgets.QWidget):
             print(self.pressedKeys)
             self.pressedKeys = []
 
-    def select(self, event, task):
-        print(task.hovered)
+    def mousePressEvent(self, event):
+        self.select(None)
 
+    def select(self, task):
+        tasks = []
+        for i in range(self.board.layout.count()):
+            tasks.append(self.board.layout.itemAt(i).widget())
+        defaultStyle = 'background: #ddd; color: #000;'
+        selectedStyle = 'background: #00f; color: #ddd;'
+        taskindex = self.board.layout.indexOf(task)
+        if self.selected:
+            lastindex = self.board.layout.indexOf(self.selected[len(self.selected) - 1])
+        else:
+            lastindex = 0
+        # 단일 선택
+        if not self.pressedKeys:
+            for value in tasks:
+                value.setStyleSheet(defaultStyle)
+            if not task: # 배경 클릭: 모든 선택영역 취소
+                self.selected = []
+            else: # 라벨 클릭
+                task.setStyleSheet(selectedStyle)
+                self.selected = [task]
+        # 다중 선택
+        elif self.pressedKeys: # control or shift
+            if not task: # 배경 클릭: 함수 스킵
+                return
+            if 'Shift' in self.pressedKeys:
+                if not 'Control' in self.pressedKeys:
+                    for value in tasks:
+                        value.setStyleSheet(defaultStyle)
+                        self.selected = []
+                if taskindex < lastindex: # 정방향 append
+                    for i in range(taskindex, lastindex + 1):
+                        if tasks[i] in self.selected:
+                            self.selected.remove(tasks[i])
+                        tasks[i].setStyleSheet(selectedStyle)
+                        self.selected.append(tasks[i])
+                else: # 역순 append
+                    for i in range(lastindex, taskindex + 1):
+                        i = lastindex - i + taskindex # i를 역순으로
+                        if tasks[i] in self.selected:
+                            self.selected.remove(tasks[i])
+                        tasks[i].setStyleSheet(selectedStyle)
+                        self.selected.append(tasks[i])
+            elif 'Control' in self.pressedKeys:
+                if task in self.selected: # 중복 클릭: 선택영역 취소
+                    task.setStyleSheet(defaultStyle)
+                    self.selected.remove(task)
+                else: # 일반 클릭
+                    task.setStyleSheet(selectedStyle)
+                    self.selected.append(task)
+         
+            
 
-
+                    
 class Board(QtWidgets.QScrollArea):
     def __init__(self):
         super().__init__()
@@ -123,13 +166,13 @@ class Tools(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
-class Task(QtWidgets.QPushButton):
+class Task(QtWidgets.QLabel):
     taskType = ''
     hovered = False
     options = {}
     def __init__(self):
         super().__init__()
-        #self.setMouseTracking(True)
+        self.setMouseTracking(True)
         self.installEventFilter(self)
         
 
@@ -147,14 +190,10 @@ class Task(QtWidgets.QPushButton):
 
     def eventFilter(self, obj, event):
         if obj == self:
-            print(event.type())
-            #print(valueToType(event))
-            #if event.type() == QtCore.QEvent.Enter:
-            #    print('enter')
-            #    self.hovered = True
-            #elif event.type() == QtCore.QEvent.Leave:
-            #    print('leave')
-            #    self.hovered = False
+            if event.type() == QtCore.QEvent.Enter:
+                self.hovered = True
+            elif event.type() == QtCore.QEvent.Leave:
+                self.hovered = False
 
         return super(Task, self).eventFilter(obj, event)
 

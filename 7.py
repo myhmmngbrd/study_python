@@ -53,7 +53,7 @@ class Main(QtWidgets.QWidget):
 
     #presskey
         keybtn = QtWidgets.QPushButton('key')
-        keybtn.clicked.connect(lambda event: self.measure('key'))
+        keybtn.clicked.connect(lambda event:    self.measure('key'))
         tools.addWidget(keybtn)
 
     #capture
