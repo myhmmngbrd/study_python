@@ -58,12 +58,65 @@ class Main(QtWidgets.QWidget):
         self.addTask('type3', {'anyattr': 1}, 'unit')
         self.addTask('type3', {'anyattr': 1}, 'unit')
 
+        #add
+        self.clickButton = QtWidgets.QPushButton('click')
+        tl.addWidget(self.clickButton)
+
+        self.sleepButton = QtWidgets.QPushButton('sleep')
+        tl.addWidget(self.sleepButton)
+
+        self.loopStartButton = QtWidgets.QPushButton('loop')
+        tl.addWidget(self.loopStartButton)
+
+        self.loopEndButton = QtWidgets.QPushButton('loop_end')
+        tl.addWidget(self.loopEndButton)
+
+        tl.addLine()
+
+        #edit
+        ebtn = self.editButton = QtWidgets.QPushButton('edit')
+        ebtn.setDisabled(True)
+        tl.addWidget(ebtn)
+
+        pbtn = self.copyButton = QtWidgets.QPushButton('copy')
+        pbtn.setDisabled(True)
+        tl.addWidget(pbtn)
+
+        rbtn = self.removeButton = QtWidgets.QPushButton('remove')
+        rbtn.setDisabled(True)
+        tl.addWidget(rbtn)
+
+        ubtn = self.moveUpButton = QtWidgets.QPushButton('moveup')
+        ubtn.setDisabled(True)
+        tl.addWidget(ubtn)
+
+        dbtn = self.moveDownButton = QtWidgets.QPushButton('movedown')
+        dbtn.setDisabled(True)
+        tl.addWidget(dbtn)
+
+        tl.addLine()
+
+        #start
+
+        sbtn = self.startButton = QtWidgets.QPushButton('start')
+        tl.addWidget(sbtn)
+
+        self.t1 = test = QtWidgets.QLabel("test")
+        #test.returnPressed.connect(self.test)
+        tl.addWidget(test)
+
+    def test(self):
+        self.tools.layout.removeWidget(self.sender())
+
     def addTask(self, taskType: str, options = None, unit: str = ''):
         task = Task()
         task.setTask(taskType, options, unit)
         task.mousePressEvent = lambda event: self.select(task)
+        task.mouseDoubleClickEvent = lambda event: task.change()
         self.board.addWidget(task)
 
+
+        print(task.values)
         # shift 눌린 경우,
         # 이미 여러개 선택된 경우,
         # 새로 눌린 위젯이 기존에 눌린 위젯 영역보다 위에 있는 경우(이미 눌린 범위에 포함되어있으면 리턴),
@@ -139,7 +192,44 @@ class Main(QtWidgets.QWidget):
                 else: # 일반 클릭
                     task.setStyleSheet(selectedStyle)
                     self.selected.append(task)
-         
+        self.activeButtons()
+    
+    def activeButtons(self):
+        ly = self.board.layout
+
+        if len(self.selected) == 1:
+            index = ly.indexOf(self.selected[0])
+            self.editButton.setDisabled(False)
+            self.removeButton.setDisabled(False)
+            self.moveUpButton.setDisabled(False)
+            self.moveDownButton.setDisabled(False)
+            if index == 0: # 맨 위칸인 경우 moveup 비활성화
+                self.moveUpButton.setDisabled(True)
+            elif index == ly.count() - 1: # 맨 아래칸인 경우 movedown 비활성화
+                self.moveDownButton.setDisabled(True)
+
+        elif len(self.selected) > 1:
+            self.removeButton.setDisabled(False)
+            first = ly.count() - 1
+            last = 0
+            for value in self.selected:
+                index = ly.indexOf(value)
+                if index < first:
+                    first = index
+                if index > last:
+                    last = index
+            self.moveUpButton.setDisabled(False)
+            self.moveDownButton.setDisabled(False)
+            if first == 0:
+                self.moveUpButton.setDisabled(True)
+            if last == ly.count() - 1:
+                self.moveDownButton.setDisabled(True)
+
+        else:
+            self.editButton.setDisabled(True)
+            self.removeButton.setDisabled(True)
+            self.moveUpButton.setDisabled(True)
+            self.moveDownButton.setDisabled(True)
             
 
                     
@@ -160,42 +250,100 @@ class Board(QtWidgets.QScrollArea):
     def addWidget(self, widget):
         self.layout.addWidget(widget)
 
+    
 
 
 class Tools(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
-class Task(QtWidgets.QLabel):
+        ly = self.layout = QtWidgets.QVBoxLayout()
+        ly.setAlignment(QtCore.Qt.AlignTop)
+        self.setLayout(ly)
+
+    def addWidget(self, widget):
+        self.layout.addWidget(widget)
+
+    def addLine(self):  
+        hline = QtWidgets.QFrame()
+        hline.setFrameShape(QtWidgets.QFrame.HLine)
+        hline.setStyleSheet('color:#888')
+        self.layout.addWidget(hline)
+
+class Task(QtWidgets.QWidget):
     taskType = ''
     hovered = False
     options = {}
+    values = []
     def __init__(self):
         super().__init__()
-        self.setMouseTracking(True)
-        self.installEventFilter(self)
-        
+
+        self.options = {}
+        self.values = []
+
+        ly = self.layout = QtWidgets.QHBoxLayout()
+        ly.setAlignment(QtCore.Qt.AlignLeft)
+        ly.setSpacing(0)
+        self.setLayout(ly)
+
 
     def setTask(self, taskType: str, options = None, unit: str = ''):
-        text = taskType
+        #text = taskType
+        typeLabel = QtWidgets.QLabel(taskType)
+        self.layout.addWidget(typeLabel)
+
+
         if type(options) == type({}):
             for key, value in options.items():
                 #value: int
-                text += ', ' + key + ': ' + str(value) + unit
+                #text += ', ' + key + ': ' + str(value) + unit
+                keyLabel = QtWidgets.QLabel(', ' + key + ': ')
+                self.layout.addWidget(keyLabel)
+                valueLabel = QtWidgets.QLabel(str(value))
+                self.values.append(valueLabel)
+                self.layout.addWidget(valueLabel)
+                if unit:
+                    unitLabel = QtWidgets.QLabel(unit)
+                    self.layout.addWidget(unitLabel)
         elif type(options) == type([]):
             for value in options:
+                keyLabel = QtWidgets.QLabel(', ')
+                self.layout.addWidget(keyLabel)
+                valueLabel = QtWidgets.QLabel(str(value))
+                self.values.append(valueLabel)
+                self.layout.addWidget(valueLabel)
+                if unit:
+                    unitLabel = QtWidgets.QLabel(unit)
+                    self.layout.addWidget(unitLabel)
                 #value: int
-                text += ', ' + str(value) + unit
-        self.setText(text)
+                #text += ', ' + str(value) + unit
+        #self.setText(text)
 
-    def eventFilter(self, obj, event):
-        if obj == self:
-            if event.type() == QtCore.QEvent.Enter:
-                self.hovered = True
-            elif event.type() == QtCore.QEvent.Leave:
-                self.hovered = False
+    def change(self):
+        print(self.values)
+        if not self.values:
+            return
+        for value in self.values:
+            index = self.layout.indexOf(value)
+            edit = QtWidgets.QLineEdit(value.text())
+            print(edit)
+            edit.returnPressed.connect(self.valueChanged)
+            self.layout.removeWidget(value)
+            self.layout.insertWidget(index, edit)
+        self.values = []
 
-        return super(Task, self).eventFilter(obj, event)
+    def valueChanged(self):
+        edit = self.sender()
+        print(edit)
+        if not edit.text().isdigit():
+            return
+        index = self.layout.indexOf(edit)
+        valueLabel = QtWidgets.QLabel(edit.text())
+        self.layout.removeWidget(edit)
+        #self.layout.insertWidget(index, valueLabel)
+        self.values.append(valueLabel)
+
+
 
 class Ruler(QtWidgets.QWidget):
     def __init__(self):
