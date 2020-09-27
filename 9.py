@@ -1,119 +1,250 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
 
+
 class Main(QtWidgets.QWidget):
-    selected = None
-    initWidth = 100
-    initColor = 0
-    colors = ['background:#f00','background:#0f0','background:#00f']
-    count = 0
+    pressed = []
+    selected = []
     def __init__(self):
         super().__init__()
 
-        resetbtn = QtWidgets.QPushButton('reset', self)
-        resetbtn.setGeometry(30,0,50,20)
 
-        btn = QtWidgets.QPushButton('+', self)
-        btn.resize(20,20)
+        self.pressed = []
+        self.selected = []
 
-        self.label = QtWidgets.QLabel('시행횟수: ' + str(self.count), self)
-        self.label.setGeometry(90,0,100,20)
+        self.resize(500,500)
 
-        self.setContentsMargins(10,30,10,10)
+        bd = self.board = Board()
+        tl = self.tools = Tools()
 
-        ly = QtWidgets.QHBoxLayout()
+        ly = self.layout = QtWidgets.QHBoxLayout()
+
+        ly.addWidget(bd)
+        ly.addWidget(tl)
+
         self.setLayout(ly)
 
-        wd1 = QtWidgets.QWidget()
-        wd1.setStyleSheet('border: 1px solid black')
-        wd1.setFixedSize(300, 500)
-        wd1.mousePressEvent = lambda event: self.move(wd1)
-        ly.addWidget(wd1)
-        ly1 = self.ly1 = QtWidgets.QVBoxLayout()
-        ly1.setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignHCenter)
-        #ly1.setSpacing(0)
-        wd1.setLayout(ly1)
+        self.addTask('click')
+        self.addTask('sleep', [500], 's')
+        self.addTask('mousemove', {'x': 300, 'y': 500}, 'px')
 
-        wd2 = QtWidgets.QWidget()
-        wd2.setStyleSheet('border: 1px solid black')
-        wd2.setFixedSize(300, 500)
-        wd2.mousePressEvent = lambda event: self.move(wd2)
-        ly.addWidget(wd2)
-        ly2 = self.ly2 = QtWidgets.QVBoxLayout()
-        ly2.setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignHCenter)
-        #ly2.setSpacing(0)
-        wd2.setLayout(ly2)
+        bd.mousePressEvent = self.unselect
 
-        wd3 = QtWidgets.QWidget()
-        wd3.setStyleSheet('border: 1px solid black')
-        wd3.setFixedSize(300, 500)
-        wd3.mousePressEvent = lambda event: self.move(wd3)
-        ly.addWidget(wd3)
-        ly3 = self.ly3 = QtWidgets.QVBoxLayout()
-        ly3.setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignHCenter)
-        #ly3.setSpacing(0)
-        wd3.setLayout(ly3)
+    def addTask(self, taskType: str, options = None, unit: str = ''):
+        task = Task()
+        task.set(taskType, options, unit)
+        task.mousePressEvent = lambda event: self.select(task)
+        self.board.add(task)
 
-        btn.clicked.connect(lambda evnet: self.addBlock(ly1))
+    def keyPressEvent(self, event):
+        self.pressed.append(event.key())
 
-        resetbtn.clicked.connect(self.reset)
+    def keyReleaseEvent(self,event):
+        if self.pressed:
+            self.pressed = []
 
+    def saveAll(self):
+        ly = self.board.layout
+        for i in range(ly.count()):
+            task = ly.itemAt(i).widget()
+            task.saveAll()
 
-    def addBlock(self, layout):
-        block = QtWidgets.QLineEdit()
-        block.setFixedSize(self.initWidth, 40)
-        block.setStyleSheet(self.colors[self.initColor])
-        block.mousePressEvent = lambda event: self.select(block)
-        block.currentFrame = layout
-        layout.addWidget(block)
-
-        self.initWidth += 15
-        self.initColor += 1
-        if self.initColor == 3:
-            self.initColor = 0
-        self.count = 0
-        self.label.setText('시행횟수: ' + str(self.count))
-        
-
-    def move(self, widget):
-        if not self.selected:
-            print('선택된 위젯 없음')
-            return
-        bl = self.selected
-        if bl.currentFrame.parentWidget() == widget:
-            print('같은 기둥 선택')
-            return
-        if widget.children()[0].count():
-            if widget.children()[0].itemAt(0).widget().rect().width() < self.selected.rect().width():
-                print('작은 블럭 위에 큰 블럭')
-                self.selected = None
-                return
-        bl.currentFrame.removeWidget(bl)
-        widget.children()[0].insertWidget(0,bl)
-        bl.currentFrame = widget.children()[0]
-        self.selected = None
-        self.count += 1
-        self.label.setText('시행횟수: ' + str(self.count))
-
-    def select(self, widget):
+    def select(self, task):
+        tasks = []
+        for i in range(self.board.layout.count()):
+            tasks.append(self.board.layout.itemAt(i).widget())
+        defaultStyle = 'background: #ddd; color: #000;'
+        selectedStyle = 'background: #00f; color: #ddd;'
+        taskindex = self.board.layout.indexOf(task)
         if self.selected:
-            print('배경대신 블럭클릭')
-            self.move(widget.currentFrame.parentWidget())
-            return
-        if not widget == widget.currentFrame.itemAt(0).widget():
-            print('맨 위 블럭이 아님')
-            return
-        self.selected = widget
+            lastindex = self.board.layout.indexOf(self.selected[len(self.selected) - 1])
+        else:
+            lastindex = 0
+        # 단일 선택
+        if not self.pressed:
+            for value in tasks:
+                value.setStyleSheet(defaultStyle)
+            if not task: # 배경 클릭: 모든 선택영역 취소
+                self.selected = []
+            else: # 라벨 클릭
+                task.setStyleSheet(selectedStyle)
+                self.selected = [task]
+        # 다중 선택
+        elif self.pressed: # control or shift
+            if not task: # 배경 클릭: 함수 스킵
+                return
+            if QtCore.Qt.Key_Shift in self.pressed:
+                if not QtCore.Qt.Key_Control in self.pressed:
+                    for value in tasks:
+                        value.setStyleSheet(defaultStyle)
+                        self.selected = []
+                if taskindex < lastindex: # 정방향 append
+                    for i in range(taskindex, lastindex + 1):
+                        if tasks[i] in self.selected:
+                            self.selected.remove(tasks[i])
+                        tasks[i].setStyleSheet(selectedStyle)
+                        self.selected.append(tasks[i])
+                else: # 역순 append
+                    for i in range(lastindex, taskindex + 1):
+                        i = lastindex - i + taskindex # i를 역순으로
+                        if tasks[i] in self.selected:
+                            self.selected.remove(tasks[i])
+                        tasks[i].setStyleSheet(selectedStyle)
+                        self.selected.append(tasks[i])
+            elif QtCore.Qt.Key_Control in self.pressed:
+                if task in self.selected: # 중복 클릭: 선택영역 취소
+                    task.setStyleSheet(defaultStyle)
+                    self.selected.remove(task)
+                else: # 일반 클릭
+                    task.setStyleSheet(selectedStyle)
+                    self.selected.append(task)
 
-    def reset(self, event):
-        for i in reversed(range(self.ly1.count())): 
-            self.ly1.itemAt(i).widget().setParent(None)
-        for i in reversed(range(self.ly2.count())): 
-            self.ly2.itemAt(i).widget().setParent(None)
-        for i in reversed(range(self.ly3.count())): 
-            self.ly3.itemAt(i).widget().setParent(None)
+        self.setButton()
 
-        self.initWidth = 100
-        self.initColor = 0
+    def unselect(self, event): #board 배경클릭시 실행
+        self.saveAll()
+        self.select(None)
+
+    def setButton(self): #select 함수 끄트머리에 실행
+        print(1)
+
+class Board(QtWidgets.QScrollArea):
+    def __init__(self):
+        super().__init__()
+
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setWidgetResizable(True)
+
+        wd = QtWidgets.QWidget()
+        self.setWidget(wd)
+
+        ly = self.layout = QtWidgets.QVBoxLayout()
+        ly.setAlignment(QtCore.Qt.AlignTop)
+        ly.setSpacing(10)
+        wd.setLayout(ly)
+
+    def add(self, widget):
+        self.layout.addWidget(widget)
+
+    def remove(self, widget):
+        self.layout.removeWidget(widget)
+        widget.deleteLater()
+
+    def move(self, index, widget):
+        oldindex = self.layout.indexOf(widget)
+        print(oldindex)
+
+
+class Tools(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+
+        ly = self.layout = QtWidgets.QVBoxLayout()
+        ly.setAlignment(QtCore.Qt.AlignTop)
+        self.setLayout(ly)
+
+    def addWidget(self, widget):
+        self.layout.addWidget(widget)
+
+    def addLine(self):  
+        hline = QtWidgets.QFrame()
+        hline.setFrameShape(QtWidgets.QFrame.HLine)
+        hline.setStyleSheet('color:#888')
+        self.layout.addWidget(hline)
+
+class Task(QtWidgets.QWidget):
+    labels = []
+    inputs = []
+    def __init__(self):
+        super().__init__()
+        self.labels = []
+        self.inputs = []
+        
+        self.setStyleSheet('background:#ddd')
+        self.setFixedHeight(20)
+        self.setContentsMargins(0,0,0,0)
+
+
+        ly = self.layout = QtWidgets.QHBoxLayout()
+        self.setLayout(ly)
+        ly.setAlignment(QtCore.Qt.AlignLeft)
+        ly.setContentsMargins(0,0,0,0)
+        ly.setSpacing(0)
+
+    def set(self, taskType: str, options = None, unit: str = ''):
+        self.layout.addWidget(QtWidgets.QLabel(taskType))
+        if options:
+            if type(options) is type({}): # type, x: a, y: b
+                for key, value in options.items():
+                    label = QtWidgets.QLabel(str(value))
+
+                    inputframe = QtWidgets.QWidget()
+                    inputframe.setFixedWidth(50)
+                    inputframe.setVisible(False)
+                    inputbox = QtWidgets.QLineEdit(str(value), inputframe)
+                    inputbox.editingFinished.connect(self.save)
+                    
+                    self.layout.addWidget(QtWidgets.QLabel(', ' + key + ': '))
+                    self.layout.addWidget(label)
+                    self.layout.addWidget(inputframe)
+                    self.layout.addWidget(QtWidgets.QLabel(unit))
+
+                    self.labels.append(label)
+                    self.inputs.append(inputframe)
+            elif type(options) is type([]): # type, a, b
+                for value in options:
+                    label = QtWidgets.QLabel(str(value))
+
+                    inputframe = QtWidgets.QWidget()
+                    inputframe.setFixedWidth(50)
+                    inputframe.setVisible(False)
+                    inputbox = QtWidgets.QLineEdit(str(value), inputframe)
+                    inputbox.editingFinished.connect(self.save)
+
+                    self.layout.addWidget(QtWidgets.QLabel(', '))
+                    self.layout.addWidget(label)
+                    self.layout.addWidget(inputframe)
+                    self.layout.addWidget(QtWidgets.QLabel(unit))
+
+                    self.labels.append(label)
+                    self.inputs.append(inputframe)
+
+    def mouseDoubleClickEvent(self, event):
+        self.editAll()
+
+    def editAll(self):
+        if self.labels:
+            for value in self.labels:
+                value.setVisible(False)
+            for value in self.inputs:
+                value.setVisible(True)
+
+    def saveAll(self):
+        if self.inputs:
+            for value in self.inputs:
+                index = self.inputs.index(value)
+                inputbox = value.children()[0]
+                label = self.labels[index]
+                if not inputbox.text().isdigit():
+                    inputbox.setText(label.text())
+                else: 
+                    label.setText(inputbox.text())
+                value.setVisible(False)
+            for value in self.labels:
+                value.setVisible(True)
+
+    def save(self, inputbox = None):
+        if not inputbox:
+            inputbox = self.sender()
+        index = self.inputs.index(inputbox.parentWidget())
+        label = self.labels[index]
+        if not inputbox.text().isdigit():
+            inputbox.setText(label.text())
+        else: 
+            label.setText(inputbox.text())
+        label.setVisible(True)
+        inputbox.parentWidget().setVisible(False)
+
 
 
 if __name__ == '__main__':

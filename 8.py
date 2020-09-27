@@ -101,12 +101,7 @@ class Main(QtWidgets.QWidget):
         sbtn = self.startButton = QtWidgets.QPushButton('start')
         tl.addWidget(sbtn)
 
-        self.t1 = test = QtWidgets.QLabel("test")
-        #test.returnPressed.connect(self.test)
-        tl.addWidget(test)
-
-    def test(self):
-        self.tools.layout.removeWidget(self.sender())
+        
 
     def addTask(self, taskType: str, options = None, unit: str = ''):
         task = Task()
@@ -114,23 +109,6 @@ class Main(QtWidgets.QWidget):
         task.mousePressEvent = lambda event: self.select(task)
         task.mouseDoubleClickEvent = lambda event: task.change()
         self.board.addWidget(task)
-
-
-        print(task.values)
-        # shift 눌린 경우,
-        # 이미 여러개 선택된 경우,
-        # 새로 눌린 위젯이 기존에 눌린 위젯 영역보다 위에 있는 경우(이미 눌린 범위에 포함되어있으면 리턴),
-        # 선택 영역 가장 위 위젯 - 1 ~ 선택된 위젯까지 새로 넣음
-        # 새로 눌린 위젯이 기존 영역보다 아래에 있는 경우,
-        # 선택 영역 가장 아래 위젯 + 1 ~ 선택된 위젯까지 새로 넣음
-
-        # ctrl 눌린 경우,
-        # 새로 누른 위젯을 선택 영역에 추가
-
-        # 이렇게 구현했을 때,
-        # shift 영역에 빈 공간이 있는 경우,
-        # 공백이 채워지지 않음 -> 이렇게 구현해야 ctrl 기능과 섞어쓰기 적합하다 사료됨
-
 
     def keyPressEvent(self, event):
         self.pressedKeys.append(str(valueToKey(event)))
@@ -142,6 +120,7 @@ class Main(QtWidgets.QWidget):
 
     def mousePressEvent(self, event):
         self.select(None)
+        self.setFocus()
 
     def select(self, task):
         tasks = []
@@ -167,8 +146,8 @@ class Main(QtWidgets.QWidget):
         elif self.pressedKeys: # control or shift
             if not task: # 배경 클릭: 함수 스킵
                 return
-            if 'Shift' in self.pressedKeys:
-                if not 'Control' in self.pressedKeys:
+            if QtCore.Qt.Key_Shift in self.pressedKeys:
+                if not QtCore.Qt.Key_Control in self.pressedKeys:
                     for value in tasks:
                         value.setStyleSheet(defaultStyle)
                         self.selected = []
@@ -185,7 +164,7 @@ class Main(QtWidgets.QWidget):
                             self.selected.remove(tasks[i])
                         tasks[i].setStyleSheet(selectedStyle)
                         self.selected.append(tasks[i])
-            elif 'Control' in self.pressedKeys:
+            elif QtCore.Qt.Key_Control in self.pressedKeys:
                 if task in self.selected: # 중복 클릭: 선택영역 취소
                     task.setStyleSheet(defaultStyle)
                     self.selected.remove(task)
@@ -275,11 +254,13 @@ class Task(QtWidgets.QWidget):
     hovered = False
     options = {}
     values = []
+    inputs = []
     def __init__(self):
         super().__init__()
 
         self.options = {}
         self.values = []
+        self.inputs = []
 
         ly = self.layout = QtWidgets.QHBoxLayout()
         ly.setAlignment(QtCore.Qt.AlignLeft)
@@ -302,6 +283,12 @@ class Task(QtWidgets.QWidget):
                 valueLabel = QtWidgets.QLabel(str(value))
                 self.values.append(valueLabel)
                 self.layout.addWidget(valueLabel)
+                valueInput = QtWidgets.QLineEdit(str(value))
+                valueInput.setVisible(False)
+                valueInput.returnPressed.connect(self.valueChanged)
+                valueInput.focusOutEvent = lambda event: self.valueChanged(valueInput)
+                self.inputs.append(valueInput)
+                self.layout.addWidget(valueInput)
                 if unit:
                     unitLabel = QtWidgets.QLabel(unit)
                     self.layout.addWidget(unitLabel)
@@ -312,6 +299,12 @@ class Task(QtWidgets.QWidget):
                 valueLabel = QtWidgets.QLabel(str(value))
                 self.values.append(valueLabel)
                 self.layout.addWidget(valueLabel)
+                valueInput = QtWidgets.QLineEdit(str(value))
+                valueInput.setVisible(False)
+                valueInput.returnPressed.connect(self.valueChanged)
+                valueInput.focusOutEvent = lambda event: self.valueChanged(valueInput)
+                self.inputs.append(valueInput)
+                self.layout.addWidget(valueInput)
                 if unit:
                     unitLabel = QtWidgets.QLabel(unit)
                     self.layout.addWidget(unitLabel)
@@ -324,26 +317,20 @@ class Task(QtWidgets.QWidget):
         if not self.values:
             return
         for value in self.values:
-            index = self.layout.indexOf(value)
-            edit = QtWidgets.QLineEdit(value.text())
-            print(edit)
-            edit.returnPressed.connect(self.valueChanged)
-            self.layout.removeWidget(value)
-            self.layout.insertWidget(index, edit)
-        self.values = []
+            value.setVisible(False)
+        for edit in self.inputs:
+            edit.setVisible(True)
 
-    def valueChanged(self):
-        edit = self.sender()
-        print(edit)
+    def valueChanged(self, edit = None):
+        if not edit:
+            edit = self.sender()
+        index = self.inputs.index(edit)
+        value = self.values[index]
         if not edit.text().isdigit():
-            return
-        index = self.layout.indexOf(edit)
-        valueLabel = QtWidgets.QLabel(edit.text())
-        self.layout.removeWidget(edit)
-        #self.layout.insertWidget(index, valueLabel)
-        self.values.append(valueLabel)
-
-
+            edit.setText(value.text())
+        value.setText(str(edit.text()))
+        edit.setVisible(False)
+        value.setVisible(True)
 
 class Ruler(QtWidgets.QWidget):
     def __init__(self):
