@@ -106,7 +106,9 @@ class Main(QtWidgets.QWidget):
             elif event.type() == QtCore.QEvent.MouseButtonDblClick:
                 self.editTask(obj)
                 return True
-        
+        elif obj is self.board:
+            if event.type() == QtCore.QEvent.MouseButtonPress or event.type() == QtCore.QEvent.MouseButtonDblClick:
+                self.saveTask()
         
         return super(Main, self).eventFilter(obj, event)
 
@@ -238,12 +240,17 @@ class Task(QtWidgets.QWidget):
             print('편집 불가능한 Task 인스턴스의 save 함수 호출')
             return
         ly = self.layout
+        index = 0
         for i in range(ly.count()):
             widget = ly.itemAt(i).widget()
             if not isinstance(widget, QtWidgets.QLabel):
                 edit = widget.children()[0]
                 if edit.text().isdigit():
-                    self.__options[edit.key] = edit.text()
+                    if type(self.__options) is type({}):
+                        self.__options[edit.key] = edit.text()
+                    elif type(self.__options) is type([]):
+                        self.__options[index] = edit.text()
+                        index = index + 1
         self.init()
 
     #gets and sets
