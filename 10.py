@@ -28,12 +28,14 @@ keys = {}
 for key, value in vars(QtCore.Qt).items():
     if isinstance(value, QtCore.Qt.Key):
         keys[value] = key.partition('_')[2]
-print(keys)
 
 class Main(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.editingTask = None
+        self.pressedKeys = []
+
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         self.resize(500,500)
 
@@ -67,6 +69,8 @@ class Main(QtWidgets.QWidget):
         self.addTask('mousemove', {'x': 500, 'y': 400})
 
         self.installEventFilter(self)
+        self.board.installEventFilter(self)
+        self.tools.installEventFilter(self)
 
     def initTools(self):
         tl = self.tools.layout
@@ -85,15 +89,24 @@ class Main(QtWidgets.QWidget):
         #start
         startbtn = QtWidgets.QPushButton('start')
         tl.addWidget(startbtn)
-
-    def mousePressEvent(self, event):
-        self.saveTask()
-    def keyPressEvent(self, event):
-        return True
     
     def eventFilter(self, obj, event):
-        if obj is self:
-            if event.type() is
+        if event.type() == QtCore.QEvent.KeyPress:
+            self.pressedKeys.append(keys[event.key()])
+            return True
+        elif event.type() == QtCore.QEvent.KeyRelease:
+            if not self.pressedKeys:
+                return True
+            print(self.pressedKeys)
+            self.pressedKeys = []
+            return True
+        elif isinstance(obj, Task):
+            if event.type() == QtCore.QEvent.MouseButtonPress:
+                return True
+            elif event.type() == QtCore.QEvent.MouseButtonDblClick:
+                self.editTask(obj)
+                return True
+        
         
         return super(Main, self).eventFilter(obj, event)
 
@@ -103,9 +116,10 @@ class Main(QtWidgets.QWidget):
             'editable': True,
         })
         task.init(taskType, options)
+        task.installEventFilter(self)
+        #task.mousePressEvent = lambda event: print('task')
+        #task.mouseDoubleClickEvent = lambda event: self.editTask(task)
         self.board.layout.addWidget(task)
-
-        task.mouseDoubleClickEvent = lambda event: self.editTask(task)
 
     def editTask(self, task):
         if not task.status()['editable'] or not task.options():
