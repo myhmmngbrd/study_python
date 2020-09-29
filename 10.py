@@ -1,28 +1,9 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
 
-keymap = {}
-for key, value in vars(QtCore.Qt).items():
-    if isinstance(value, QtCore.Qt.Key):
-        keymap[value] = key.partition('_')[2]
-
-modmap = {
-    QtCore.Qt.ControlModifier: keymap[QtCore.Qt.Key_Control],
-    QtCore.Qt.AltModifier: keymap[QtCore.Qt.Key_Alt],
-    QtCore.Qt.ShiftModifier: keymap[QtCore.Qt.Key_Shift],
-    QtCore.Qt.MetaModifier: keymap[QtCore.Qt.Key_Meta],
-    QtCore.Qt.GroupSwitchModifier: keymap[QtCore.Qt.Key_AltGr],
-    QtCore.Qt.KeypadModifier: keymap[QtCore.Qt.Key_NumLock],
-}
-
-def valueToKey(event):
-    sequence = []
-    for modifier, text in modmap.items():
-        if event.modifiers() & modifier:
-            sequence.append(text)
-    key = keymap.get(event.key(), event.text())
-    if key not in sequence:
-        sequence.append(key)
-    return '+'.join(sequence)
+events = {}
+for key, value in vars(QtCore.QEvent).items():
+    if isinstance(value, QtCore.QEvent.Type):
+        events[value] = key
 
 keys = {}
 for key, value in vars(QtCore.Qt).items():
@@ -32,8 +13,8 @@ for key, value in vars(QtCore.Qt).items():
 class Main(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        self.editingTask = None
         self.pressedKeys = []
+        self.lastSelectedTask = None
 
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
@@ -72,17 +53,46 @@ class Main(QtWidgets.QWidget):
         self.board.installEventFilter(self)
         self.tools.installEventFilter(self)
 
+
     def initTools(self):
         tl = self.tools.layout
         #add
         clickbtn = QtWidgets.QPushButton('click')
+        clickbtn.clicked.connect(self.addClick)
         tl.addWidget(clickbtn)
+
+        sleepbtn = QtWidgets.QPushButton('sleep')
+        sleepbtn.clicked.connect(self.addSleep)
+        tl.addWidget(sleepbtn)
+
+        loopbtn = QtWidgets.QPushButton('loop')
+        loopbtn.clicked.connect(self.addLoopStart)
+        tl.addWidget(loopbtn)
+
+        loopendbtn = QtWidgets.QPushButton('loopend')
+        loopendbtn.clicked.connect(self.addLoopEnd)
+        tl.addWidget(loopendbtn)
+
 
         tl.addWidget(HLine())
         
         #edit
         editbtn = QtWidgets.QPushButton('edit')
         tl.addWidget(editbtn)
+
+        removebtn = QtWidgets.QPushButton('remove')
+        tl.addWidget(removebtn)
+
+        copybtn = QtWidgets.QPushButton('copy')
+        tl.addWidget(copybtn)
+
+        moveupbtn = QtWidgets.QPushButton('moveup')
+        tl.addWidget(moveupbtn)
+
+        movedownbtn = QtWidgets.QPushButton('movedown')
+        tl.addWidget(movedownbtn)
+
+
 
         tl.addWidget(HLine())
 
@@ -91,17 +101,21 @@ class Main(QtWidgets.QWidget):
         tl.addWidget(startbtn)
     
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.KeyPress:
+        if event.type() == QtCore.QEvent.ActivationChange:
+            self.pressedKeys = []
+        elif event.type() == QtCore.QEvent.KeyPress:
+            if event.key() == QtCore.Qt.Key_Return and not self.pressedKeys:
+                self.saveTask()
             self.pressedKeys.append(keys[event.key()])
             return True
         elif event.type() == QtCore.QEvent.KeyRelease:
             if not self.pressedKeys:
                 return True
-            print(self.pressedKeys)
-            self.pressedKeys = []
+            self.pressedKeys.remove(keys[event.key()])
             return True
         elif isinstance(obj, Task):
             if event.type() == QtCore.QEvent.MouseButtonPress:
+                self.selectTask(obj)
                 return True
             elif event.type() == QtCore.QEvent.MouseButtonDblClick:
                 self.editTask(obj)
@@ -109,48 +123,109 @@ class Main(QtWidgets.QWidget):
         elif obj is self.board:
             if event.type() == QtCore.QEvent.MouseButtonPress or event.type() == QtCore.QEvent.MouseButtonDblClick:
                 self.saveTask()
+                if not self.pressedKeys:
+                    self.clearSelection()
+                    self.lastSelectedTask = None
         
         return super(Main, self).eventFilter(obj, event)
 
     def addTask(self, taskType: str, options = None):
         task = Task()
-        task.setStatus({
-            'editable': True,
-        })
         task.init(taskType, options)
+        if not options:
+            editable = False
+        else:
+            editable = True
+        task.setStatus({
+            'selectable': True,
+            'editable': editable,
+        })
         task.installEventFilter(self)
-        #task.mousePressEvent = lambda event: print('task')
-        #task.mouseDoubleClickEvent = lambda event: self.editTask(task)
         self.board.layout.addWidget(task)
+
+        return task
 
     def editTask(self, task):
         if not task.status()['editable'] or not task.options():
             return
-        self.editingTask = task
-        task.setStatus({ 'edit': True })
         task.edit()
-        self.disableEdit(True)
+        self.disableTask(True)
 
     def saveTask(self):
-        if not self.editingTask:
-            return
-        task = self.editingTask
-        if not task.status()['edit']:
-            return
-        self.editingTask = None
-        task.setStatus({ 'edit': False })
-        task.save()
-        self.disableEdit(False)
-
-    def disableEdit(self, boolean: bool):
+        task = None
         ly = self.board.layout
+        for i in range(ly.count()):
+            wd = ly.itemAt(i).widget()
+            if wd.status()['edit']:
+                task = wd
+        if not task:
+            return
+        task.save()
+        self.disableTask(False)
+
+    def disableTask(self, boolean: bool):
+        ly = self.board.layout
+        self.clearSelection()
         for i in range(ly.count()):
             task = ly.itemAt(i).widget()
             task.setStatus({
+                'selectable': not boolean,
                 'editable': not boolean,
                 'moveableUp': not boolean,
                 'moveableDown': not boolean,
             })
+
+    def selectTask(self, task):
+        if not task.status()['selectable']:
+            return
+        ly = self.board.layout
+        keys = self.pressedKeys
+        if not keys:
+            self.clearSelection()
+            task.select()
+            self.lastSelectedTask = task
+        elif len(keys) == 1:
+            if 'Control' in keys:
+                task.select()
+                self.lastSelectedTask = task
+            if 'Shift' in keys:
+                self.clearSelection()
+                index = ly.indexOf(task)
+                oldindex = 0
+                if self.lastSelectedTask:
+                    oldindex = ly.indexOf(self.lastSelectedTask)
+                for i in range(min(index, oldindex), max(index, oldindex) + 1):
+                    wd = ly.itemAt(i).widget()
+                    wd.select()
+        elif len(keys) == 2:
+            if 'Control' in keys and 'Shift' in keys:
+                index = ly.indexOf(task)
+                if not self.lastSelectedTask:
+                    return
+                oldindex = ly.indexOf(self.lastSelectedTask)               
+                for i in range(min(index, oldindex), max(index, oldindex) + 1):
+                    wd = ly.itemAt(i).widget()
+                    if not wd.status()['edit']:
+                        wd.select()
+
+
+    def clearSelection(self):
+        ly = self.board.layout
+        for i in range(ly.count()):
+            task = ly.itemAt(i).widget()
+            task.unselect()
+
+    def addClick(self):
+        self.addTask('click')
+
+    def addSleep(self):
+        self.addTask('sleep',[0])
+    
+    def addLoopStart(self):
+        self.addTask('loop',[0])
+    
+    def addLoopEnd(self):
+        self.addTask('loopend')
 
 class Task(QtWidgets.QWidget):
     def __init__(self):
@@ -159,12 +234,14 @@ class Task(QtWidgets.QWidget):
         self.__options = {}
         self.__status = {
             'edit': False,
+            'selected': False,
+            'selectable': False,
             'editable': False,
             'moveableUp': False,
             'moveableDown': False,
         }
-        self.setFixedHeight(20)
-        self.setContentsMargins(0,0,0,0)
+        self.setFixedHeight(30)
+        self.setContentsMargins(0,5,0,5)
 
         self.layout = QtWidgets.QHBoxLayout()
         self.layout.setAlignment(QtCore.Qt.AlignLeft)
@@ -201,16 +278,7 @@ class Task(QtWidgets.QWidget):
             widget.deleteLater()
 
     def edit(self):
-        print(self.__status['editable'])
-        if not self.__taskType:
-            print('Task().edit 함수가 인스턴스 초기화 이전에 호출됨')
-            return
-        if not self.__options:
-            print('편집 불가능한 Task 인스턴스의 edit 함수 호출')
-            return
-        if not self.__status['editable']:
-            print('편집 불가능한 Task')
-            return
+        self.__status['edit'] = True
         self.clear()
         ly = self.layout
         ly.addWidget(QtWidgets.QLabel(self.__taskType))
@@ -220,6 +288,7 @@ class Task(QtWidgets.QWidget):
                 frame = QtWidgets.QWidget()
                 frame.setFixedWidth(40)
                 edit = QtWidgets.QLineEdit(str(value), frame)
+                edit.setStyleSheet('background: #fff; color: #000')
                 edit.setFixedWidth(40)
                 edit.key = key
                 ly.addWidget(frame)
@@ -229,16 +298,12 @@ class Task(QtWidgets.QWidget):
                 frame = QtWidgets.QWidget()
                 frame.setFixedWidth(40)
                 edit = QtWidgets.QLineEdit(str(value), frame)
+                edit.setStyleSheet('background: #fff; color: #000')
                 edit.setFixedWidth(40)
                 ly.addWidget(frame)
 
     def save(self):
-        if not self.__taskType:
-            print('Task().save 함수가 인스턴스 초기화 이전에 호출됨')
-            return
-        if not self.__options:
-            print('편집 불가능한 Task 인스턴스의 save 함수 호출')
-            return
+        self.__status['edit'] = False
         ly = self.layout
         index = 0
         for i in range(ly.count()):
@@ -252,6 +317,14 @@ class Task(QtWidgets.QWidget):
                         self.__options[index] = edit.text()
                         index = index + 1
         self.init()
+
+    def select(self):
+        self.__status['selected'] = True
+        self.setStyleSheet('background: #00f; color: #ddd;')
+
+    def unselect(self):
+        self.__status['selected'] = False
+        self.setStyleSheet('background: #ddd; color: #000;')
 
     #gets and sets
     def setStatus(self, status: dict):
